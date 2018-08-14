@@ -1,0 +1,17 @@
+{
+  "name": "ridecell-repos-updater",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Maciej Sawicki <maciej.sawicki@acaisoft.com> (https://acaisoft.com)",
+  "license": "ISC",
+  "dependencies": {
+    "fs-extra": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^5.0.4"
+  }
+}
