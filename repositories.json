@@ -1,7 +1,7 @@
 [
   {
-    "text": "folder-name",
-    "url": "your url",
-    "isDone": true
+    "text": "repository name",
+    "url": "repository url",
+    "isDone": false
   }
 ]

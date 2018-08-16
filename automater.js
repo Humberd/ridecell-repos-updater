@@ -3,6 +3,9 @@ const util = require('util');
 const exec = util.promisify(require('child_process').exec);
 
 const TEMP_DIR = '/mnt/c/temp/';
+const TASK_ID_LONG = 'ACAISOFT-2433';
+const TASK_ID = '2433';
+const BRANCH_NAME = `${TASK_ID_LONG}-v2`;
 
 function readRepositoriesList() {
   console.log('Reading repositories list...');
@@ -36,55 +39,17 @@ function updatePackageJsonScripts(repository) {
   console.log('Updating package.json scripts...');
   const path = `${TEMP_DIR}${repository.text}/package.json`;
   const packageJson = fs.readJSONSync(path);
-  packageJson.scripts['prettier-changed'] = 'pretty-quick';
-  packageJson.scripts['prettier-all'] = 'prettier --write \"**/*.js\"';
-  packageJson.scripts['precommit'] = 'pretty-quick --staged';
-  packageJson.scripts['eslint-all'] = 'eslint src --fix';
+  packageJson.scripts['prettier-all'] = 'prettier --write \"**/*.{js,jsx}\"';
   fs.writeJSON(path, packageJson, {spaces: 2});
   console.log('Updating package.json scripts SUCCESS');
 
   return packageJson;
 }
 
-async function installPackages(repository, packageJson) {
+async function installPackages(repository) {
   console.log('Installing packages...');
-  if (!packageJson.devDependencies) {
-    packageJson.devDependencies = {};
-  }
-
-  const pool = [
-    'babel-eslint',
-    'eslint',
-    'eslint-plugin-import',
-    'eslint-plugin-jsx-a11y',
-    'eslint-plugin-react'];
-  const packagesToDelete = [];
-  pool.forEach(it => {
-    if (packageJson.devDependencies[it]) {
-      packagesToDelete.push(it);
-    }
-  });
-  let removeCommand = '';
-  if (packagesToDelete.length > 0) {
-    removeCommand = `&& yarn remove ${packagesToDelete.join(' ')}`;
-  }
-
-  console.log(`Removing the following packages: ${packagesToDelete.join(' ')}`);
-  const command = `cd ${TEMP_DIR}${repository.text} ${removeCommand} && yarn upgrade @ridecell/eslint-config-react && yarn add --dev husky`;
-  try {
-    await exec(command);
-  } catch (e) {
-    console.log("Removing failed, trying new key before.");
-    await copyNpmrc(repository);
-    await exec(command);
-  }
+  await exec(`cd ${TEMP_DIR}${repository.text} && yarn`);
   console.log('Installing packages SUCCESS');
-}
-
-async function copyNpmrc(repository) {
-  console.log('Copying .npmrc...');
-  await exec(`cp -r ./files-to-copy/.npmrc ${TEMP_DIR}${repository.text}`);
-  console.log('Copying .npmrc SUCCESS');
 }
 
 async function cloneRepo(repository) {
@@ -96,14 +61,14 @@ async function cloneRepo(repository) {
 async function checkoutBranch(repository) {
   console.log('Checking out branch...');
   await exec(
-      `cd ${TEMP_DIR}${repository.text} && git checkout -b "ACAISOFT-2433"`);
+      `cd ${TEMP_DIR}${repository.text} && git checkout -b "${BRANCH_NAME}"`);
   console.log('Checking out branch SUCCESS');
 }
 
 async function pushBranch(repository) {
   console.log('Pushing branch...');
   await exec(
-      `cd ${TEMP_DIR}${repository.text} && git push origin "ACAISOFT-2433"`);
+      `cd ${TEMP_DIR}${repository.text} && git push origin "${BRANCH_NAME}"`);
   console.log('Pushing branch SUCCESS');
 }
 
@@ -126,25 +91,13 @@ async function prettify(repository) {
   console.log('Prettifying SUCCESS');
 }
 
-async function eslint(repository) {
-  console.log('Eslinting...');
-  await exec(`cd ${TEMP_DIR}${repository.text} && yarn eslint-all`);
-  console.log('Eslinting SUCCESS');
-}
-
 async function createPullRequest(repository) {
   console.log('Creating Pull Request...');
-  const prTitle = '"[ACAISOFT-2433] Integration with prettier"';
+  const prTitle = `"[${TASK_ID_LONG}] Prettify jsx files"`;
   const reviewers = '"jakubdrozdek,karol-pudlo,mcieniewski"';
   await exec(
       `cd ${TEMP_DIR}${repository.text} && hub pull-request -m ${prTitle} -r ${reviewers}`);
   console.log('Creating Pull Request SUCCESS');
-}
-
-async function tryBuilding(repository) {
-  console.log('Building...');
-  await exec(`cd ${TEMP_DIR}${repository.text} && yarn build`);
-  console.log('Building SUCCESS');
 }
 
 async function tryDecrypting(repository) {
@@ -169,20 +122,13 @@ async function handleRepository(repository) {
   await cloneRepo(repository);
   await tryDecrypting(repository);
   await checkoutBranch(repository);
-  const packageJson = await updatePackageJsonScripts(repository);
-  await copyFiles(repository);
+  await updatePackageJsonScripts(repository);
   await clearCache(repository);
-  await installPackages(repository, packageJson);
-  await gitCommit(repository, 'chore: Integrated project with prettier #2433');
+  await installPackages(repository);
+  await gitCommit(repository, `fix: Include .jsx to prettify-all script #${TASK_ID}`);
   await prettify(repository);
   try {
     await gitCommit(repository, 'chore: Prettiefied the whole project #2433');
-  } catch (e) {
-    console.log('No changes.');
-  }
-  await eslint(repository);
-  try {
-    await gitCommit(repository, 'chore: Linted the whole project #2433');
   } catch (e) {
     console.log('No changes.');
   }
